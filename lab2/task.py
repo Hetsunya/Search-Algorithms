@@ -46,10 +46,8 @@ def dijkstra(graph, start):
 # Генерация графа (список смежности)
 def generate_graph(num_vertices, density=0.5, weighted=False):
     if weighted:
-        # Для взвешенного графа используем словарь для хранения смежных вершин с весами
         graph = {i: {} for i in range(num_vertices)}
     else:
-        # Для невзвешенного графа используем множество для хранения соседей
         graph = {i: set() for i in range(num_vertices)}
 
     for i in range(num_vertices):
@@ -69,19 +67,19 @@ def visualize_graph(graph, title="Граф"):
     G = nx.Graph()
     for vertex in graph:
         for neighbor in graph[vertex]:
-            if isinstance(graph[vertex], dict):  # Взвешенный граф
+            if isinstance(graph[vertex], dict):
                 weight = graph[vertex][neighbor]
                 G.add_edge(vertex, neighbor, weight=weight)
-            else:  # Невзвешенный граф
+            else:
                 G.add_edge(vertex, neighbor)
 
-    pos = nx.spring_layout(G)  # Позиционирование вершин
+    pos = nx.spring_layout(G)
     plt.figure(figsize=(8, 6))
-    if isinstance(graph[list(graph.keys())[0]], dict):  # Взвешенный граф
+    if isinstance(graph[list(graph.keys())[0]], dict):
         labels = nx.get_edge_attributes(G, 'weight')
         nx.draw(G, pos, with_labels=True, node_color='lightblue', node_size=500, font_size=10)
         nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
-    else:  # Невзвешенный граф
+    else:
         nx.draw(G, pos, with_labels=True, node_color='lightblue', node_size=500, font_size=10)
     plt.title(title)
     plt.show()
@@ -89,38 +87,44 @@ def visualize_graph(graph, title="Граф"):
 # Замер времени выполнения алгоритма
 def measure_time(algorithm, graph, start):
     start_time = time.perf_counter()
-    algorithm(graph, start)
-    return time.perf_counter() - start_time
+    result = algorithm(graph, start)
+    elapsed_time = time.perf_counter() - start_time
+    return elapsed_time, result
 
 # Основная функция для экспериментов
 def main():
-    sizes = [10, 20, 50, 100, 200, 300, 500]  # Размеры графов
+    sizes = [10, 20, 50]
     bfs_times = []
     dfs_times = []
     dijkstra_times = []
 
     for size in sizes:
         print(f"\nГраф из {size} вершин:")
-        graph = generate_graph(size, weighted=True)  # Взвешенный граф для Дейкстры
-        unweighted_graph = generate_graph(size)      # Невзвешенный граф для BFS и DFS
-        #
+        graph = generate_graph(size, weighted=True)
+        unweighted_graph = generate_graph(size)
 
-        # Замер времени для BFS
-        bfs_time = measure_time(bfs, unweighted_graph, 0)
+        # BFS
+        bfs_time, bfs_order = measure_time(bfs, unweighted_graph, 0)
         bfs_times.append(bfs_time)
         print(f"BFS: {bfs_time:.6f} сек")
+        print("Порядок обхода BFS:", bfs_order)
 
-        # Замер времени для DFS
-        dfs_time = measure_time(dfs, unweighted_graph, 0)
+        # DFS
+        dfs_time, dfs_order = measure_time(dfs, unweighted_graph, 0)
         dfs_times.append(dfs_time)
         print(f"DFS: {dfs_time:.6f} сек")
+        print("Порядок обхода DFS:", dfs_order)
 
-        # Замер времени для Дейкстры
-        dijkstra_time = measure_time(dijkstra, graph, 0)
+        # Дейкстра
+        dijkstra_time, dijkstra_distances = measure_time(dijkstra, graph, 0)
         dijkstra_times.append(dijkstra_time)
         print(f"Дейкстра: {dijkstra_time:.6f} сек")
+        print("Кратчайшие расстояния от вершины 0:", dijkstra_distances)
 
-    # Визуализация результатов
+        visualize_graph(unweighted_graph, title=f"Невзвешенный граф ({size} вершин)")
+        visualize_graph(graph, title=f"Взвешенный граф ({size} вершин)")
+
+    # Визуализация времени выполнения
     plt.figure(figsize=(10, 6))
     plt.plot(sizes, bfs_times, marker='o', label='BFS')
     plt.plot(sizes, dfs_times, marker='o', label='DFS')
@@ -133,8 +137,4 @@ def main():
     plt.show()
 
 if __name__ == "__main__":
-    # graph = generate_graph(10, weighted=True)  # Взвешенный граф для Дейкстры
-    # unweighted_graph = generate_graph(10)
-    # visualize_graph(graph, title=f"Взвешенный граф ({10} вершин)")
-    # visualize_graph(unweighted_graph, title=f"Невзвешенный граф ({10} вершин)")
     main()
