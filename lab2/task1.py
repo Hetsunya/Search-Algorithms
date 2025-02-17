@@ -4,54 +4,59 @@ import random
 import matplotlib.pyplot as plt
 import networkx as nx
 
+
 # Реализация DFS (поиск в глубину)
 def dfs(graph, start, visited=None):
     if visited is None:
         visited = set()
     visited.add(start)
     order = [start]
-    for next_vertex in sorted(graph[start].keys() - visited):  # Добавил sorted()
+    for next_vertex in set(graph[start].keys()) - visited:
         order.extend(dfs(graph, next_vertex, visited))
     return order
 
-# Реализация BFS с приоритетной очередью
+# Реализация BFS с гарантированным порядке обхода
 def bfs(graph, start, target=None):
     visited = set()
-    pq = [(0, start)]
+    queue = [start]
     order = []
-
-    while pq:
-        _, vertex = heapq.heappop(pq)
+    while queue:
+        vertex = queue.pop(0)
         if vertex not in visited:
             visited.add(vertex)
             order.append(vertex)
-            if target is not None and vertex == target:
+            # Если нашли целевую вершину, выходим
+            if vertex == target and target is not None :
                 break
-            for neighbor in sorted(graph[vertex].keys()):
-                if neighbor not in visited:
-                    heapq.heappush(pq, (0, neighbor))
-
+            # Сортируем соседей перед добавлением в очередь
+            queue.extend(sorted(set(graph[vertex].keys()) - visited))
     return order
 
-# Реализация алгоритма Дейкстры без учета весов
+# Реализация алгоритма Дейкстры с возможностью поиска конкретной вершины
 def dijkstra(graph, start, target=None):
-    visited = set()
-    pq = [(0, start)]
+    distances = {vertex: float('inf') for vertex in graph}
+    distances[start] = 0
+    pq = [(0, start, start)]  # Добавляем третий элемент для сортировки
     order = []
+    visited = set()  # Множество посещённых вершин
 
     while pq:
-        _, vertex = heapq.heappop(pq)
-        if vertex in visited:
+        current_distance, current_vertex, _ = heapq.heappop(pq)
+        if current_vertex in visited:
             continue
-        visited.add(vertex)
-        order.append(vertex)
-        if target is not None and vertex == target:
+        visited.add(current_vertex)
+        order.append(current_vertex)
+        # Если нашли целевую вершину, выходим
+        if target is not None and current_vertex == target:
             break
-        for neighbor in sorted(graph[vertex].keys()):
-            if neighbor not in visited:
-                heapq.heappush(pq, (0, neighbor))
+        for neighbor, weight in sorted(graph[current_vertex].items()):  # Сортируем соседей
+            distance = current_distance + weight
+            if distance < distances[neighbor]:
+                distances[neighbor] = distance
+                heapq.heappush(pq, (distance, neighbor, neighbor))  # Добавляем третий элемент для сортировки
 
-    return order
+    return distances, order
+
 
 # Генерация графа (список смежности)
 def generate_graph(num_vertices, density=0.4, equal_weight=False):
@@ -99,15 +104,18 @@ def main():
         print(f"\nГраф из {size} вершин:")
         graph = generate_graph(size)
 
+        # BFS
         bfs_time, bfs_order = measure_time(bfs, graph, 0)
         bfs_times.append(bfs_time)
         print(f"BFS: {bfs_time:.6f} сек")
 
+        # DFS
         dfs_time, dfs_order = measure_time(dfs, graph, 0)
         dfs_times.append(dfs_time)
         print(f"DFS: {dfs_time:.6f} сек")
 
-        dijkstra_time, dijkstra_order = measure_time(dijkstra, graph, 0)
+        # Дейкстра
+        dijkstra_time, (dijkstra_distances, dijkstra_order) = measure_time(dijkstra, graph, 0)
         dijkstra_times.append(dijkstra_time)
         print(f"Дейкстра: {dijkstra_time:.6f} сек")
 
@@ -115,22 +123,12 @@ def main():
             print(graph)
             print("Порядок обхода BFS:", bfs_order)
             print("Порядок обхода DFS:", dfs_order)
+            print("Кратчайшие расстояния от вершины 0:", dijkstra_distances)
             print("Порядок обхода Дейкстры:", dijkstra_order)
             visualize_graph(graph, title=f"Граф ({size} вершин)")
 
-    equal_graph = generate_graph(10, equal_weight=True)
-    target_vertex = 7
-    bfs_target_order = bfs(equal_graph, 0, target=target_vertex)
-    dijkstra_target_order = dijkstra(equal_graph, 0, target=target_vertex)
 
-    print("Порядок обхода BFS:", bfs_target_order, "Длина обхода: ", len(bfs_target_order))
-    print("Порядок обхода Дейкстры:", dijkstra_target_order, "Длина обхода: ", len(dijkstra_target_order))
-    if bfs_target_order == dijkstra_target_order:
-        print("Обходы равны")
-    else:
-        print("Обходы не равны")
-    visualize_graph(equal_graph, title="Равновзвешенный граф (все веса = 1)")
-
+    # Визуализация времени выполнения
     plt.figure(figsize=(10, 6))
     plt.plot(sizes, bfs_times, marker='o', label='BFS')
     plt.plot(sizes, dfs_times, marker='o', label='DFS')
