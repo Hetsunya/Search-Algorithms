@@ -34,24 +34,34 @@ def bfs(graph, start, target=None):
     return order
 
 # Реализация алгоритма Дейкстры без учета весов
+# Реализация алгоритма Дейкстры с учетом весов
 def dijkstra(graph, start, target=None):
-    visited = set()
-    pq = [(0, start)]
+    distances = {vertex: float('inf') for vertex in graph}  # Инициализация расстояний
+    distances[start] = 0
+    pq = [(0, start)]  # (текущая дистанция, вершина)
     order = []
 
     while pq:
-        _, vertex = heapq.heappop(pq)
-        if vertex in visited:
+        current_distance, vertex = heapq.heappop(pq)
+
+        # Если извлеченная вершина имеет большее расстояние, пропускаем ее
+        if current_distance > distances[vertex]:
             continue
-        visited.add(vertex)
+
         order.append(vertex)
         if target is not None and vertex == target:
             break
-        for neighbor in sorted(graph[vertex].keys()):
-            if neighbor not in visited:
-                heapq.heappush(pq, (0, neighbor))
 
-    return order
+        for neighbor, weight in graph[vertex].items():
+            distance = current_distance + weight
+
+            # Если найден более короткий путь к соседу
+            if distance < distances[neighbor]:
+                distances[neighbor] = distance
+                heapq.heappush(pq, (distance, neighbor))
+
+    return order, distances
+
 
 # Генерация графа (список смежности)
 def generate_graph(num_vertices, density=0.4, equal_weight=False):
@@ -90,7 +100,7 @@ def measure_time(algorithm, graph, start):
 
 # Основная функция для экспериментов
 def main():
-    sizes = [10, 20, 50]
+    sizes = [10, 20, 50, 100]
     bfs_times = []
     dfs_times = []
     dijkstra_times = []

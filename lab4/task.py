@@ -14,10 +14,11 @@ nltk.download('punkt_tab')
 nltk.download('wordnet')
 nltk.download('stopwords')
 
-# Папка с текстовыми файлами (указать путь к датасету)
+# Папка с текстовыми файлами
 DATA_PATH = "BBC News Summary/News Articles/tech"
 
 
+print(set(stopwords.words('english')))
 # Функция для чтения текстов из файлов
 def load_documents(data_path):
     documents = {}
