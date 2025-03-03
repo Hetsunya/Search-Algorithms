@@ -3,68 +3,58 @@ import time
 import random
 import matplotlib.pyplot as plt
 import networkx as nx
+from collections import deque
 
-# Реализация DFS (поиск в глубину)
+# DFS (поиск в глубину)
 def dfs(graph, start, visited=None):
     if visited is None:
         visited = set()
     visited.add(start)
     order = [start]
-    for next_vertex in sorted(graph[start].keys() - visited):  # Добавил sorted()
+    for next_vertex in sorted(graph[start].keys() - visited):
         order.extend(dfs(graph, next_vertex, visited))
     return order
 
-# Реализация BFS с приоритетной очередью
+# BFS (поиск в ширину)
 def bfs(graph, start, target=None):
     visited = set()
-    pq = [(0, start)]
+    queue = deque([start])
     order = []
 
-    while pq:
-        _, vertex = heapq.heappop(pq)
+    while queue:
+        vertex = queue.popleft()
         if vertex not in visited:
             visited.add(vertex)
             order.append(vertex)
             if target is not None and vertex == target:
                 break
-            for neighbor in sorted(graph[vertex].keys()):
-                if neighbor not in visited:
-                    heapq.heappush(pq, (0, neighbor))
+            queue.extend(neighbor for neighbor in graph[vertex] if neighbor not in visited)
 
     return order
 
-# Реализация алгоритма Дейкстры без учета весов
-# Реализация алгоритма Дейкстры с учетом весов
+# Алгоритм Дейкстры
 def dijkstra(graph, start, target=None):
-    distances = {vertex: float('inf') for vertex in graph}  # Инициализация расстояний
-    distances[start] = 0
-    pq = [(0, start)]  # (текущая дистанция, вершина)
-    order = []
+        distances = {vertex: float('inf') for vertex in graph}
+        distances[start] = 0
+        queue = deque([start])
+        order = []
 
-    while pq:
-        current_distance, vertex = heapq.heappop(pq)
+        while queue:
+            vertex = queue.popleft()
+            order.append(vertex)
+            if target is not None and vertex == target:
+                break
 
-        # Если извлеченная вершина имеет большее расстояние, пропускаем ее
-        if current_distance > distances[vertex]:
-            continue
+            for neighbor in graph[vertex]:
+                if distances[neighbor] == float('inf'):  # Если еще не посещали
+                    distances[neighbor] = distances[vertex] + 1
+                    queue.append(neighbor)
 
-        order.append(vertex)
-        if target is not None and vertex == target:
-            break
-
-        for neighbor, weight in graph[vertex].items():
-            distance = current_distance + weight
-
-            # Если найден более короткий путь к соседу
-            if distance < distances[neighbor]:
-                distances[neighbor] = distance
-                heapq.heappush(pq, (distance, neighbor))
-
-    return order, distances
+        return order, distances
 
 
 # Генерация графа (список смежности)
-def generate_graph(num_vertices, density=0.4, equal_weight=False):
+def generate_graph(num_vertices, density=0.5, equal_weight=False):
     graph = {i: {} for i in range(num_vertices)}
     weight = 1 if equal_weight else None
     for i in range(num_vertices):
@@ -135,7 +125,7 @@ def main():
 
     print("Порядок обхода BFS:", bfs_target_order, "Длина обхода: ", len(bfs_target_order))
     print("Порядок обхода Дейкстры:", dijkstra_target_order, "Длина обхода: ", len(dijkstra_target_order))
-    if bfs_target_order == dijkstra_target_order:
+    if bfs_target_order == dijkstra_target_order[0]:
         print("Обходы равны")
     else:
         print("Обходы не равны")

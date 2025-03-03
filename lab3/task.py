@@ -9,13 +9,6 @@ def manhattan_distance(a, b):
 def euclidean_distance(a, b):
     return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
 
-def diagonal_distance(a, b):
-    dx = abs(a[0] - b[0])
-    dy = abs(a[1] - b[1])
-    D = 1
-    D2 = math.sqrt(2)
-    return D * (dx + dy) + (D2 - 2 * D) * min(dx, dy)
-
 def a_star_search(grid, start, goal, heuristic):
     open_list = []
     heapq.heappush(open_list, (0, start))
@@ -102,7 +95,7 @@ grids = [
 
 start_positions = [(0, 0), (0, 0)]
 goal_positions = [(4, 4), (9, 9)]
-heuristics = [manhattan_distance, euclidean_distance, diagonal_distance]
+heuristics = [manhattan_distance, euclidean_distance]
 
 titles = ["5x5", "10x10"]
 paths = [[] for _ in grids]
