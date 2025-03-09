@@ -1,13 +1,12 @@
 import heapq
-import math
+import json
+import os
 import time
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 def manhattan_distance(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
-
-def euclidean_distance(a, b):
-    return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
 
 def a_star_search(grid, start, goal, heuristic):
     open_list = []
@@ -15,11 +14,11 @@ def a_star_search(grid, start, goal, heuristic):
     came_from = {}
     g_score = {start: 0}
     f_score = {start: heuristic(start, goal)}
-    visited_nodes = 0
+    visited_nodes = []
 
     while open_list:
         _, current = heapq.heappop(open_list)
-        visited_nodes += 1
+        visited_nodes.append(current)
 
         if current == goal:
             path = []
@@ -30,87 +29,81 @@ def a_star_search(grid, start, goal, heuristic):
             path.reverse()
             return path, visited_nodes
 
-        # for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]:
-        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:  # Только 4 направления
-
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
             neighbor = (current[0] + dx, current[1] + dy)
             if 0 <= neighbor[0] < len(grid) and 0 <= neighbor[1] < len(grid[0]) and grid[neighbor[0]][neighbor[1]] == 0:
-                tentative_g_score = g_score[current] + (math.sqrt(2) if dx != 0 and dy != 0 else 1)
+                tentative_g_score = g_score[current] + 1
                 if neighbor not in g_score or tentative_g_score < g_score[neighbor]:
                     came_from[neighbor] = current
                     g_score[neighbor] = tentative_g_score
                     f_score[neighbor] = tentative_g_score + heuristic(neighbor, goal)
                     heapq.heappush(open_list, (f_score[neighbor], neighbor))
 
-    return None, visited_nodes
+    return None, visited_nodes  # Путь не найден
 
-def plot_grids(grids, paths, starts, goals, heuristics, titles):
-    fig, axes = plt.subplots(len(grids), len(heuristics), figsize=(5 * len(heuristics), 5 * len(grids)))
+def visualize(grid, path, visited, start, goal):
+    fig, ax = plt.subplots()
+    ax.set_xticks(range(len(grid[0]) + 1))
+    ax.set_yticks(range(len(grid) + 1))
+    ax.grid(True)
 
-    for i, grid in enumerate(grids):
-        for j, heuristic in enumerate(heuristics):
-            ax = axes[i, j] if len(grids) > 1 else axes[j]
-            ax.set_title(f"{titles[i]} - {heuristic.__name__}")
+    for x in range(len(grid)):
+        for y in range(len(grid[0])):
+            if grid[x][y] == 1:
+                ax.add_patch(plt.Rectangle((y, len(grid) - 1 - x), 1, 1, color='black'))
 
-            for x in range(len(grid)):
-                for y in range(len(grid[0])):
-                    if grid[x][y] == 1:
-                        ax.add_patch(plt.Rectangle((y, len(grid) - 1 - x), 1, 1, color='black'))
+    ax.add_patch(plt.Rectangle((start[1], len(grid) - 1 - start[0]), 1, 1, color='green'))
+    ax.add_patch(plt.Rectangle((goal[1], len(grid) - 1 - goal[0]), 1, 1, color='red'))
 
-            path = paths[i][j]
-            if path:
-                for x, y in path:
-                    ax.add_patch(plt.Rectangle((y, len(grid) - 1 - x), 1, 1, color='blue', alpha=0.5))
+    frames = []
+    for i in range(len(visited)):
+        frame = []
+        for x, y in visited[:i]:
+            frame.append(ax.add_patch(plt.Rectangle((y, len(grid) - 1 - x), 1, 1, color='orange', alpha=0.3)))
+        if path and i < len(path):
+            x, y = path[i]
+            frame.append(ax.add_patch(plt.Rectangle((y, len(grid) - 1 - x), 1, 1, color='blue', alpha=0.7)))
+        frames.append(frame)
 
-            ax.add_patch(plt.Rectangle((starts[i][1], len(grid) - 1 - starts[i][0]), 1, 1, color='green'))
-            ax.add_patch(plt.Rectangle((goals[i][1], len(grid) - 1 - goals[i][0]), 1, 1, color='red'))
+    def update(frame):
+        for patch in frame:
+            ax.add_patch(patch)
 
-            ax.set_xticks(range(len(grid[0]) + 1))
-            ax.set_yticks(range(len(grid) + 1))
-            ax.grid(True)
-
+    ani = animation.FuncAnimation(fig, update, frames=frames, repeat=False)
     plt.show()
 
-grids = [
-    [
-        [0, 1, 0, 0, 0],
-        [0, 1, 0, 1, 0],
-        [0, 0, 0, 1, 0],
-        [0, 1, 1, 1, 0],
-        [0, 0, 0, 0, 0]
-    ],
-    [
-        [0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
-        [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
-        [0, 0, 0, 0, 1, 0, 0, 0, 1, 0],
-        [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-        [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 1, 1, 1, 1, 1, 1, 1, 1, 0]
-    ]
-]
+def load_mazes_from_folder(folder):
+    """Загружает все лабиринты из папки."""
+    mazes = {}
+    for filename in os.listdir(folder):
+        if filename.endswith(".json"):
+            with open(os.path.join(folder, filename), "r") as f:
+                maze_data = json.load(f)
+                size = (maze_data['width'], maze_data['height'])
+                mazes[size] = maze_data
+    return mazes
 
-start_positions = [(0, 0), (0, 0)]
-goal_positions = [(4, 4), (9, 9)]
-heuristics = [manhattan_distance, euclidean_distance]
+if __name__ == "__main__":
+    maze_folder = "mazes"  # Папка с сохранёнными лабиринтами
+    mazes = load_mazes_from_folder(maze_folder)
 
-titles = ["5x5", "10x10"]
-paths = [[] for _ in grids]
-
-for i, grid in enumerate(grids):
-    for heuristic in heuristics:
+    for size, data in mazes.items():
+        print(f"Лабиринт {size[0]}x{size[1]}")
+        start, goal, grid = tuple(data['start']), tuple(data['goal']), data['maze']
         start_time = time.time()
-        path, visited = a_star_search(grid, start_positions[i], goal_positions[i], heuristic)
+        path, visited = a_star_search(grid, start, goal, manhattan_distance)
         end_time = time.time()
 
-        print(f"{titles[i]} - {heuristic.__name__}")
-        print(f"Найденный путь: {path}")
-        print(f"Посещённые вершины: {visited}")
-        print(f"Время работы: {end_time - start_time:.6f} секунд\n")
+        if path:
+            print(f"  Найденный путь: {path}")
+        else:
+            print(f"  Путь не найден!")
 
-        paths[i].append(path)
+        print(f"  Посещённые вершины: {len(visited)}")
+        print(f"  Время работы: {end_time - start_time:.6f} секунд")
 
-plot_grids(grids, paths, start_positions, goal_positions, heuristics, titles)
+        maze_filename = f"mazes/{size[0]}x{size[1]}_result.json"
+        with open(maze_filename, "w") as maze_file:
+            json.dump({"start": start, "goal": goal, "grid": grid, "path": path, "visited": visited}, maze_file, indent=4)
+
+        visualize(grid, path, visited, start, goal)

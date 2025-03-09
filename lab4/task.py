@@ -126,9 +126,9 @@ for query in querys:
     print("\nФразовый поиск:")
     if search_results["phrase_search"]:
         for doc_id, positions in search_results["phrase_search"].items():
-            print(f"  Документ: {doc_id}, позиции начала фразы: {positions}")
+            positions_str = ", ".join(str(pos) for pos in positions)
+            print(f"  Документ: {doc_id}, позиции начала фразы: {positions_str}")
     else:
         print("  Фраза не найдена в текстах.")
-
 
 
