@@ -11,12 +11,12 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # Загрузка необходимых ресурсов
-nltk.download('punkt')
-nltk.download('wordnet')
-nltk.download('stopwords')
+# nltk.download('punkt')
+# nltk.download('wordnet')
+# nltk.download('stopwords')
 
 # Папка с текстовыми файлами
-DATA_PATH = "BBC News Summary/News Articles/tech"
+DATA_PATH = "News Articles"
 
 def load_documents(data_path):
     documents = {}

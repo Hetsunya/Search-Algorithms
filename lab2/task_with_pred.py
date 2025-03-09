@@ -22,11 +22,14 @@ graph = {
 def dfs(graph, start, visited=None):
     if visited is None:
         visited = set()
+    if start in visited:  # Если вершина уже посещена, не обрабатываем её повторно
+        return []
     visited.add(start)
     order = [start]
-    for next_vertex in sorted(graph[start].keys() - visited):
+    for next_vertex in sorted(graph[start].keys()):  # Просто проходим по смежным вершинам
         order.extend(dfs(graph, next_vertex, visited))
     return order
+
 
 # BFS (поиск в ширину)
 def bfs(graph, start, target=None):
