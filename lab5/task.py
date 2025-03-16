@@ -1,60 +1,73 @@
 import os
 import re
-import json
-import nltk
-import numpy as np
-from collections import defaultdict
-from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
-from nltk.corpus import stopwords
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-# Загрузка необходимых ресурсов
-# nltk.download('punkt')
-# nltk.download('wordnet')
-# nltk.download('stopwords')
-
-# Папка с текстовыми файлами
-DATA_PATH = "News Articles"
-
-def load_documents(data_path):
-    documents = {}
-    for filename in os.listdir(data_path):
-        if filename.endswith(".txt"):
-            with open(os.path.join(data_path, filename), "r", encoding="utf-8") as file:
-                documents[filename] = file.read()
-    return documents
+import math
+from collections import Counter
 
 def preprocess_text(text):
     text = text.lower()
-    text = re.sub(r'[^a-zа-яё ]', '', text)
-    tokens = word_tokenize(text)
-    lemmatizer = WordNetLemmatizer()
-    stop_words = set(stopwords.words('english'))
-    processed_tokens = [lemmatizer.lemmatize(word) for word in tokens if word not in stop_words]
-    return " ".join(processed_tokens)
+    text = re.sub(r'[^а-яёa-z0-9 ]', '', text)
+    return text.split()
 
-# Загрузка и предобработка документов
-documents = load_documents(DATA_PATH)
-preprocessed_docs = {doc_id: preprocess_text(text) for doc_id, text in documents.items()}
+def compute_tf(doc_tokens):
+    tf = Counter(doc_tokens)
+    doc_length = len(doc_tokens)
+    return {term: freq / doc_length for term, freq in tf.items()}
 
-# Вычисление TF-IDF
-vectorizer = TfidfVectorizer()
-tfidf_matrix = vectorizer.fit_transform(preprocessed_docs.values())
+def compute_idf(documents):
+    num_docs = len(documents)
+    idf = {}
+    all_tokens = set(token for doc in documents for token in doc)
+    for token in all_tokens:
+        containing_docs = sum(1 for doc in documents if token in doc)
+        idf[token] = math.log((num_docs + 1) / (containing_docs + 1)) + 1
+    return idf
 
-# Функция поиска
+def compute_tfidf(tf, idf):
+    return {term: tf_val * idf.get(term, 0) for term, tf_val in tf.items()}
 
-def search(query, vectorizer, tfidf_matrix, documents):
-    query = preprocess_text(query)
-    query_vector = vectorizer.transform([query])
-    similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
-    ranked_docs = sorted(zip(documents.keys(), similarities), key=lambda x: x[1], reverse=True)
-    return ranked_docs
+def cosine_similarity(vec1, vec2):
+    common_terms = set(vec1.keys()) & set(vec2.keys())
+    dot_product = sum(vec1[t] * vec2[t] for t in common_terms)
+    norm1 = math.sqrt(sum(v**2 for v in vec1.values()))
+    norm2 = math.sqrt(sum(v**2 for v in vec2.values()))
+    return dot_product / (norm1 * norm2) if norm1 and norm2 else 0
 
-# Пример поиска
-query = "technology market"
-search_results = search(query, vectorizer, tfidf_matrix, documents)
-print("Результаты поиска:")
-for doc_id, score in search_results[:10]:  # Выводим топ-10 результатов
-    print(f"Документ: {doc_id}, Сходство: {score:.4f}")
+def search(query, documents):
+    query_tokens = preprocess_text(query)
+    query_tf = compute_tf(query_tokens)
+    idf = compute_idf(documents)
+    query_tfidf = compute_tfidf(query_tf, idf)
+    
+    scores = []
+    for i, doc in enumerate(documents):
+        doc_tf = compute_tf(doc)
+        doc_tfidf = compute_tfidf(doc_tf, idf)
+        similarity = cosine_similarity(query_tfidf, doc_tfidf)
+        scores.append((i, similarity))
+    
+    scores.sort(key=lambda x: x[1], reverse=True)
+    return scores
+
+def load_documents(folder):
+    documents = []
+    filenames = []
+    for filename in os.listdir(folder):
+        with open(os.path.join(folder, filename), 'r', encoding='utf-8') as file:
+            text = file.read()
+            documents.append(preprocess_text(text))
+            filenames.append(filename)
+    return documents, filenames
+
+def main():
+    folder = "kniga"  # Папка с текстовыми файлами
+    query = "Гондора Мин-Риммон"
+    
+    documents, filenames = load_documents(folder)
+    search_results = search(query, documents)
+    
+    print("Результаты поиска:")
+    for doc_idx, score in search_results:
+        print(f"Документ: {filenames[doc_idx]}, Сходство: {score:.4f}")
+
+if __name__ == "__main__":
+    main()

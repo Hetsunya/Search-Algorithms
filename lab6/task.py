@@ -1,37 +1,50 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
-def pagerank(graph, damping=0.85, max_iter=100, tol=1.0e-6):
-    n = len(graph)
-    pr = np.ones(n) / n
-    M = np.zeros((n, n))
+# Расширенный граф в виде матрицы смежности
+G = np.array([
+    [0, 1, 1, 1, 0],  # Страница A
+    [1, 0, 1, 1, 0],  # Страница B
+    [1, 1, 0, 0, 0],  # Страница C
+    [0, 1, 1, 0, 0],  # Страница D
+    [1, 0, 0, 1, 0],  # Страница E
+])
 
-    for i in range(n):
-        if len(graph[i]) > 0:
-            M[i, graph[i]] = 1 / len(graph[i])
-        else:
-            M[i, :] = 1 / n  # Dangling node correction
+# Инициализация
+N = G.shape[0]  # количество страниц
+d_values = [0.6, 0.7, 0.85, 0.95]  # разные значения damping factor
+PR_init = np.ones(N) / N  # начальные значения PageRank
 
-    for _ in range(max_iter):
-        new_pr = (1 - damping) / n + damping * M.T @ pr
-        if np.linalg.norm(new_pr - pr, 1) < tol:
+# Функция для расчета нового значения PR
+def pagerank(G, PR, d, max_iter=100, tol=1e-6):
+    for i in range(max_iter):
+        new_PR = (1 - d) / N + d * np.dot(G.T, PR / np.sum(G, axis=1))
+        if np.linalg.norm(new_PR - PR, 1) < tol:
             break
-        pr = new_pr
+        PR = new_PR
+    return PR
 
-    return pr
+# Эксперименты с разными значениями damping factor
+results = {}
+for d in d_values:
+    PR = pagerank(G, PR_init, d)
+    results[d] = PR
 
-# Пример графа: индексы соответствуют страницам, а значения — спискам ссылок
-graph = {
-    0: [1, 2],
-    1: [2],
-    2: [0],
-    3: [2, 4],
-    4: [3]
-}
+    # Выводим результаты на график
+    plt.plot(range(1, N + 1), PR, label=f'd = {d:.2f}')
 
-graph_list = [graph[i] if i in graph else [] for i in range(len(graph))]
+# Отображение результатов на графике
+plt.title('PageRank для разных значений damping factor')
+plt.xlabel('Страница')
+plt.ylabel('PageRank')
+plt.xticks(range(1, N + 1), [f'Page {i+1}' for i in range(N)])
+plt.legend()
+plt.grid(True)
+plt.show()
 
-damping_factors = [0.6, 0.7, 0.85, 0.95]
-
-for d in damping_factors:
-    pr_values = pagerank(graph_list, damping=d)
-    print(f"Damping factor: {d}\nPageRank: {pr_values}\n")
+# Вывод результатов
+print("PageRank для разных значений damping factor:")
+for d, PR in results.items():
+    print(f"\ndamping factor = {d}")
+    for i, pr in enumerate(PR):
+        print(f"Страница {i+1}: {pr:.4f}")
