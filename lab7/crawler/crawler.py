@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
 DB_PATH = "search_engine.db"
-MAX_DEPTH = 2  # Глубина обхода ссылок
+MAX_DEPTH = 30  # Глубина обхода ссылок
 
 def create_db():
     """Создаёт таблицу для хранения страниц"""

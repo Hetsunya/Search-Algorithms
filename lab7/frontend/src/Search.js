@@ -22,6 +22,11 @@ const Search = () => {
         setLoading(false);
     };
 
+    // Проверяем, что results является массивом перед сортировкой
+    const sortedResults = Array.isArray(results) ? [...results].sort(function(a, b) {
+        return b.Score - a.Score;
+    }) : [];
+
     return (
         <div>
             <h1>Поиск на сайте</h1>
@@ -37,17 +42,20 @@ const Search = () => {
 
             {error && <p>{error}</p>}
 
-            {results.length > 0 && (
+            {sortedResults.length > 0 ? (
                 <ul>
-                    {results.map((result) => (
+                    {sortedResults.map((result) => (
                         <li key={result.ID}>
-                            {/* Убираем лишние пробелы и символы новой строки из Title */}
                             <a href={result.URL} target="_blank" rel="noopener noreferrer">
                                 {result.Title.replace(/\n/g, '').trim()}
                             </a>
+                            <br />
+                            <small>Рейтинг: {result.Score.toFixed(4)}</small>
                         </li>
                     ))}
                 </ul>
+            ) : (
+                <p>Нет результатов для вашего запроса.</p>
             )}
         </div>
     );

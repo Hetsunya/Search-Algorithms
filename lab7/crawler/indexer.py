@@ -4,6 +4,7 @@ from collections import defaultdict
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
+from nltk.stem import WordNetLemmatizer
 
 nltk.download("punkt")
 nltk.download("stopwords")
@@ -29,10 +30,15 @@ def create_index_table():
 def tokenize(text):
     """Токенизация, удаление стоп-слов и стемминг"""
     stop_words = set(stopwords.words("english"))
-    stemmer = PorterStemmer()
-    
     words = word_tokenize(text.lower())
-    words = [stemmer.stem(w) for w in words if w.isalnum() and w not in stop_words]
+
+    # стемминг
+    # stemmer = PorterStemmer()
+    # words = [stemmer.stem(w) for w in words if w.isalnum() and w not in stop_words]
+
+    #лемматизация
+    lemmatizer = WordNetLemmatizer()
+    words = [lemmatizer.lemmatize(w) for w in words if w.isalnum() and w not in stop_words]
     
     return words
 
