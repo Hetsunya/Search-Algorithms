@@ -95,9 +95,14 @@ def analyze_graph(graph, name):
     draw_graph(graph, title=name)
 
 
-def generate_graph(size):
-    return {i: {random.randint(0, size - 1): random.randint(1, 10) for _ in range(random.randint(1, min(4, size - 1)))}
-            for i in range(size)}
+def generate_graph(size, edge_density=0.2):
+    graph = {i: {} for i in range(size)}
+    max_edges = int(size * (size - 1) * edge_density / 2)
+    for _ in range(max_edges):
+        u, v = random.sample(range(size), 2)
+        if v not in graph[u]:
+            graph[u][v] = random.randint(1, 10)
+    return graph
 
 
 def compare_algorithms(sizes, bfs_times, dfs_times, dijkstra_times):
