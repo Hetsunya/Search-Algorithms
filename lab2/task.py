@@ -31,9 +31,11 @@ def breadth_first_search(graph, start, target=None):
     return traversal
 
 
-def shortest_path_dijkstra(graph, start, target=None):
+def shortest_path_dijkstra(graph, start):
     priority_queue, visited = [(0, start)], set()
-    distances, predecessors = {start: 0}, {start: None}
+    distances = {node: float('inf') for node in graph}
+    distances[start] = 0
+    predecessors = {node: None for node in graph}
     path_traversal = []
 
     while priority_queue:
@@ -42,24 +44,27 @@ def shortest_path_dijkstra(graph, start, target=None):
             continue
         visited.add(node)
         path_traversal.append(node)
-        if target is not None and node == target:
-            break
         for neighbor, weight in graph.get(node, {}).items():
             if neighbor not in visited:
                 new_cost = cost + weight
-                if new_cost < distances.get(neighbor, float('inf')):
+                if new_cost < distances[neighbor]:
                     distances[neighbor] = new_cost
                     predecessors[neighbor] = node
                     heapq.heappush(priority_queue, (new_cost, neighbor))
 
-    path, total_cost = [], float('inf')
-    if target in distances:
-        while target is not None:
-            path.append(target)
-            target = predecessors[target]
-        path.reverse()
-        total_cost = distances[path[-1]]
-    return path_traversal, total_cost, path
+    # Построение путей ко всем вершинам
+    all_paths = {}
+    for target in graph:
+        if distances[target] != float('inf'):  # Если вершина достижима
+            path = []
+            current = target
+            while current is not None:
+                path.append(current)
+                current = predecessors[current]
+            path.reverse()
+            all_paths[target] = (distances[target], path)
+
+    return path_traversal, all_paths
 
 
 def draw_graph(graph, title="Граф"):
@@ -77,7 +82,7 @@ def draw_graph(graph, title="Граф"):
 
 def execution_time(algorithm, graph, start, target=None):
     start_time = time.perf_counter()
-    result = algorithm(graph, start, target)
+    result = algorithm(graph, start)
     elapsed_time = time.perf_counter() - start_time
     return elapsed_time, result
 
@@ -87,15 +92,18 @@ def analyze_graph(graph, name):
     algorithms = [(breadth_first_search, "BFS"), (depth_first_search, "DFS"), (shortest_path_dijkstra, "Дейкстра")]
     for algo, label in algorithms:
         if label == "Дейкстра":
-            time_taken, (order, distance, path) = execution_time(algo, graph, 0, 4)
-            print(f"{label}: {time_taken:.6f} сек, Обход: {order}, Длина пути: {distance}, Путь: {path}")
+            time_taken, (order, all_paths) = execution_time(algo, graph, 0)
+            print(f"{label}: {time_taken:.6f} сек, Обход: {order}")
+            print("Кратчайшие пути ко всем вершинам:")
+            for target, (distance, path) in all_paths.items():
+                print(f"  До {target}: Длина пути: {distance}, Путь: {path}")
         else:
             time_taken, order = execution_time(algo, graph, 0)
             print(f"{label}: {time_taken:.6f} сек, Обход: {order}")
     draw_graph(graph, title=name)
 
 
-def generate_graph(size, edge_density=0.2):
+def generate_graph(size, edge_density=0.4):
     graph = {i: {} for i in range(size)}
     max_edges = int(size * (size - 1) * edge_density / 2)
     for _ in range(max_edges):
@@ -121,7 +129,33 @@ def compare_algorithms(sizes, bfs_times, dfs_times, dijkstra_times):
 # Заданные графы
 sample_graphs = [
     ({0: {1: 1, 2: 1}, 1: {0: 1, 3: 1, 4: 1}, 2: {0: 1, 4: 1}, 3: {1: 1, 4: 1}, 4: {1: 1, 2: 1, 3: 1}}, "Малый граф"),
-    ({0: {1: 4, 2: 1}, 1: {0: 4, 3: 1}, 2: {0: 1, 3: 2}, 3: {1: 1, 2: 2, 4: 3}, 4: {3: 3}}, "Взвешенный граф")
+    ({
+        0: {1: 1, 2: 1, 3: 1},
+        1: {0: 1, 4: 1, 5: 1},
+        2: {0: 1, 6: 1, 7: 1},
+        3: {0: 1, 8: 1, 9: 1},
+        4: {1: 1, 10: 1, 11: 1},
+        5: {1: 1, 12: 1, 13: 1},
+        6: {2: 1, 14: 1, 15: 1},
+        7: {2: 1, 16: 1, 17: 1},
+        8: {3: 1, 18: 1, 19: 1},
+        9: {3: 1, 10: 1, 11: 1},
+        10: {4: 1, 9: 1, 12: 1},
+        11: {4: 1, 9: 1, 13: 1},
+        12: {5: 1, 10: 1, 14: 1},
+        13: {5: 1, 11: 1, 15: 1},
+        14: {6: 1, 12: 1, 16: 1},
+        15: {6: 1, 13: 1, 17: 1},
+        16: {7: 1, 14: 1, 18: 1},
+        17: {7: 1, 15: 1, 19: 1},
+        18: {8: 1, 16: 1, 19: 1},
+        19: {8: 1, 17: 1, 18: 1}
+    }, "Невзвешенный граф 20 узлов"),
+    ({
+        0: {1: 4, 2: 3, 3: 8}, 1: {0: 4, 4: 2, 5: 6}, 2: {0: 3, 6: 1, 7: 5},
+        3: {0: 8, 8: 3}, 4: {1: 2, 9: 4}, 5: {1: 6, 6: 2}, 6: {2: 1, 5: 2, 9: 7},
+        7: {2: 5, 8: 2}, 8: {3: 3, 7: 2, 9: 1}, 9: {4: 4, 6: 7, 8: 1}
+    }, "Взвешенный граф 10 узлов")
 ]
 
 for graph, name in sample_graphs:

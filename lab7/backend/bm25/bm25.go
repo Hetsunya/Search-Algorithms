@@ -41,7 +41,7 @@ func CalculateBM25(queryWords []string, documents []models.Document, k1 float64,
 // calculateTermFrequency считает TF с учётом Content
 func calculateTermFrequency(word string, doc models.Document) float64 {
 	count := 0
-	words := strings.Fields(doc.Content) // Теперь используем Content
+	words := strings.Fields(doc.Content)
 	for _, w := range words {
 		if strings.ToLower(w) == word {
 			count++

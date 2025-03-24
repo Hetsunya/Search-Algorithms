@@ -58,9 +58,9 @@ def compute_idf(total_docs, doc_freq, vocab):
     for word in vocab:
         df = doc_freq.get(word, 0)
         # Улучшенная формула IDF для избежания нулевых значений
-        idf[word] = math.log(1 + total_docs / (df + 1))
-        if idf[word] == 0:
-            print(f"IDF=0 для '{word}', df={df}, total_docs={total_docs}")
+        idf[word] = math.log( total_docs / df)
+        # if idf[word] == 0:
+        #     print(f"IDF=0 для '{word}', df={df}, total_docs={total_docs}")
     return idf
 
 def build_tfidf_matrix(tf_matrix, idf):
@@ -134,7 +134,7 @@ print(f"Подготовка данных завершена за {prep_time:.4f
 print(f"Размер словаря: {len(vocab)} слов")
 print(f"Количество документов: {len(documents)}")
 
-queries = ["затрепетали на ветру знамена", "Гондора Мин-Риммон", "рохиррим", "войске"]
+queries = ["затрепетали на ветру знамена", "Фродо кольцо", "рохиррим"]
 
 relevant_docs = generate_relevant_docs(queries, preprocessed_docs)
 print("\nСгенерированные релевантные документы:")
