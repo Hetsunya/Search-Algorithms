@@ -27,20 +27,14 @@ def create_index_table():
     conn.commit()
     conn.close()
 
-def tokenize(text):
-    """Токенизация, удаление стоп-слов и стемминг"""
+def tokenize(text, use_stemming=False):
     stop_words = set(stopwords.words("english"))
     words = word_tokenize(text.lower())
-
-    # стемминг
-    # stemmer = PorterStemmer()
-    # words = [stemmer.stem(w) for w in words if w.isalnum() and w not in stop_words]
-
-    #лемматизация
+    if use_stemming:
+        stemmer = PorterStemmer()
+        return [stemmer.stem(w) for w in words if w.isalnum() and w not in stop_words]
     lemmatizer = WordNetLemmatizer()
-    words = [lemmatizer.lemmatize(w) for w in words if w.isalnum() and w not in stop_words]
-    
-    return words
+    return [lemmatizer.lemmatize(w) for w in words if w.isalnum() and w not in stop_words]
 
 def build_index():
     """Создаёт инвертированный индекс и сохраняет его в SQLite"""

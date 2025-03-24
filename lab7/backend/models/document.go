@@ -5,6 +5,6 @@ type Document struct {
 	Title    string
 	URL      string
 	Content  string
-	URLLinks []string // Если страницы ссылаются друг на друга
+	URLLinks []string // Ссылки на другие страницы, загруженные из базы
 	Score    float64  // Оценка релевантности
 }

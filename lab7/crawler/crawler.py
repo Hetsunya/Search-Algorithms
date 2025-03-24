@@ -15,18 +15,18 @@ def create_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             url TEXT UNIQUE,
             title TEXT,
-            content TEXT
+            content TEXT,
+            links TEXT
         )
     ''')
     conn.commit()
     conn.close()
 
-def save_page(url, title, content):
-    """Сохраняет страницу в базу"""
+def save_page(url, title, content, links):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO documents (url, title, content) VALUES (?, ?, ?)", 
-              (url, title, content))
+    c.execute("INSERT OR IGNORE INTO documents (url, title, content, links) VALUES (?, ?, ?, ?)", 
+              (url, title, content, ','.join(links)))
     conn.commit()
     conn.close()
 
@@ -52,7 +52,6 @@ def crawl(url, depth=0, visited=set()):
 
     text = clean_text(html)
     title = BeautifulSoup(html, "html.parser").title.string if BeautifulSoup(html, "html.parser").title else url
-    save_page(url, title, text)
 
     # Поиск новых ссылок
     soup = BeautifulSoup(html, "html.parser")
@@ -60,6 +59,11 @@ def crawl(url, depth=0, visited=set()):
         next_url = urljoin(url, link["href"])
         if urlparse(next_url).netloc == urlparse(url).netloc:  # Остаёмся на том же домене
             crawl(next_url, depth + 1, visited)
+    
+    
+    links = [urljoin(url, link["href"]) for link in soup.find_all("a", href=True) 
+             if urlparse(urljoin(url, link["href"])).netloc == urlparse(url).netloc]
+    save_page(url, title, text, links)
 
 if __name__ == "__main__":
     create_db()

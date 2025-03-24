@@ -19,7 +19,6 @@ var db *sql.DB
 
 func init() {
 	var err error
-	// Открытие базы данных
 	db, err = sql.Open("sqlite3", "./search_engine.db")
 	if err != nil {
 		log.Fatal(err)
@@ -42,21 +41,38 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	queryWords := strings.Fields(strings.ToLower(query))
-	var results []models.Document
-
-	// Логируем запрос
 	log.Printf("Search query: %s", query)
 
-	// Получаем документы, соответствующие запросу
+	// Получаем все документы из базы для BM25 и PageRank
+	rows, err := db.Query("SELECT id, title, url, content, links FROM documents")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Database query error: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	allDocs := make(map[int]models.Document)
+	for rows.Next() {
+		var doc models.Document
+		var linksStr string
+		if err := rows.Scan(&doc.ID, &doc.Title, &doc.URL, &doc.Content, &linksStr); err != nil {
+			http.Error(w, fmt.Sprintf("Error scanning row: %v", err), http.StatusInternalServerError)
+			return
+		}
+		doc.URLLinks = strings.Split(linksStr, ",")
+		allDocs[doc.ID] = doc
+	}
+
+	// Поиск релевантных документов через индекс
+	results := make(map[int]models.Document)
 	for _, word := range queryWords {
 		log.Printf("Searching for word: %s", word)
 		rows, err := db.Query(`
-            SELECT documents.id, documents.title, documents.url
+            SELECT documents.id, documents.title, documents.url, documents.content, documents.links
             FROM documents
             JOIN index_table ON documents.id = index_table.doc_id
             WHERE index_table.word = ?
         `, word)
-
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Database query error: %v", err), http.StatusInternalServerError)
 			return
@@ -65,56 +81,45 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 
 		for rows.Next() {
 			var doc models.Document
-			if err := rows.Scan(&doc.ID, &doc.Title, &doc.URL); err != nil {
+			var linksStr string
+			if err := rows.Scan(&doc.ID, &doc.Title, &doc.URL, &doc.Content, &linksStr); err != nil {
 				http.Error(w, fmt.Sprintf("Error scanning row: %v", err), http.StatusInternalServerError)
 				return
 			}
-			results = append(results, doc)
+			doc.URLLinks = strings.Split(linksStr, ",")
+			results[doc.ID] = doc
 		}
 	}
 
-	// Логируем найденные документы до BM25
-	log.Printf("Found documents before BM25 calculation: %d", len(results))
-
-	// Расчет BM25
-	results = bm25.CalculateBM25(queryWords, results, 1.5, 0.75, 150)
-
-	// Логируем результаты после BM25
-	log.Printf("Documents after BM25 calculation:")
+	// Преобразуем результаты в список
+	var resultList []models.Document
 	for _, doc := range results {
-		log.Printf("Document: %s, Score: %f", doc.Title, doc.Score)
+		resultList = append(resultList, doc)
+	}
+	log.Printf("Found documents before ranking: %d", len(resultList))
+
+	// Расчёт BM25
+	resultList = bm25.CalculateBM25(queryWords, resultList, 1.5, 0.75, allDocs)
+
+	// Расчёт PageRank для всех документов
+	var allDocList []models.Document
+	for _, doc := range allDocs {
+		allDocList = append(allDocList, doc)
+	}
+	pageRanks := pagerank.CalculatePageRank(allDocList, 0.85, 10)
+
+	// Комбинируем BM25 и PageRank только для результатов поиска
+	for i := range resultList {
+		resultList[i].Score += pageRanks[resultList[i].URL]
 	}
 
-	// Дополнительно можно добавить расчет PageRank
-	pageRanks := pagerank.CalculatePageRank(results, 0.85, 10)
-
-	// Логируем значения PageRank
-	log.Printf("PageRank values:")
-	for _, doc := range results {
-		log.Printf("Document: %s, PageRank: %f", doc.Title, pageRanks[doc.URL])
-	}
-
-	// Отображение результатов с учетом BM25 и PageRank
-	for i := range results {
-		results[i].Score += pageRanks[results[i].URL] // Добавляем влияние PageRank в итоговый рейтинг
-	}
-
-	// Логируем итоговые результаты
-	log.Printf("Final results after combining BM25 and PageRank:")
-	for _, doc := range results {
-		log.Printf("Document: %s, Final Score: %f", doc.Title, doc.Score)
-	}
-
-	// Отправляем результат в формате JSON
+	// Отправляем результат
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(results)
+	json.NewEncoder(w).Encode(resultList)
 }
 
 func main() {
-	// Обработчик для поиска
 	http.HandleFunc("/search", searchHandler)
-
-	// Запуск HTTP-сервера
 	fmt.Println("Server started on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

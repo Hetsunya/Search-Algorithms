@@ -8,64 +8,61 @@ import (
 	"mysearchengine/models"
 )
 
-// Функция для вычисления BM25 для документа
-func CalculateBM25(queryWords []string, documents []models.Document, k1 float64, b float64, avgDocLength float64) []models.Document {
-	var scoredResults []models.Document
+// CalculateBM25 вычисляет BM25 для списка документов
+func CalculateBM25(queryWords []string, documents []models.Document, k1 float64, b float64, allDocs map[int]models.Document) []models.Document {
+	// Вычисляем среднюю длину документа
+	totalLength := 0.0
+	for _, doc := range allDocs {
+		totalLength += float64(len(strings.Fields(doc.Content)))
+	}
+	avgDocLength := totalLength / float64(len(allDocs))
+	log.Printf("Average document length: %f", avgDocLength)
 
+	var scoredResults []models.Document
 	for _, doc := range documents {
 		score := 0.0
-		docLength := float64(len(strings.Join(strings.Fields(doc.Title), " ") + " " + doc.URL)) // Длина документа
-
-		// Логируем длину документа
+		docLength := float64(len(strings.Fields(doc.Content)))
 		log.Printf("Document: %s, Length: %f", doc.Title, docLength)
 
 		for _, word := range queryWords {
-			tf := calculateTermFrequency(word, doc)                   // Функция для подсчета TF
-			idf := calculateInverseDocumentFrequency(word, documents) // IDF для слова
-
-			// Логируем TF и IDF
+			tf := calculateTermFrequency(word, doc)
+			idf := calculateInverseDocumentFrequency(word, documents)
 			log.Printf("Word: %s, TF: %f, IDF: %f", word, tf, idf)
-
-			score += idf * (tf * (k1 + 1)) / (tf + k1*(1-b+(b*(docLength/avgDocLength))))
+			score += idf * (tf * (k1 + 1)) / (tf + k1*(1-b+b*(docLength/avgDocLength)))
 		}
-
-		// Логируем итоговый score для документа
-		log.Printf("Final score for Document: %s, Score: %f", doc.Title, score)
-
+		log.Printf("Final BM25 score for Document: %s, Score: %f", doc.Title, score)
 		doc.Score = score
 		scoredResults = append(scoredResults, doc)
 	}
 
-	// Сортируем результаты по убыванию оценки релевантности
-	log.Printf("Sorting documents by score...")
 	return sortByScore(scoredResults)
 }
 
-// Функция для подсчета TF (Term Frequency)
+// calculateTermFrequency считает TF с учётом Content
 func calculateTermFrequency(word string, doc models.Document) float64 {
 	count := 0
-	words := strings.Fields(doc.Title + " " + doc.URL)
+	words := strings.Fields(doc.Content) // Теперь используем Content
 	for _, w := range words {
-		if w == word {
+		if strings.ToLower(w) == word {
 			count++
 		}
 	}
 	return float64(count) / float64(len(words))
 }
 
-// Функция для подсчета IDF (Inverse Document Frequency)
+// calculateInverseDocumentFrequency считает IDF
 func calculateInverseDocumentFrequency(word string, documents []models.Document) float64 {
 	docCount := len(documents)
 	docWithWord := 0
 	for _, doc := range documents {
-		if strings.Contains(doc.Title+" "+doc.URL, word) {
+		if strings.Contains(strings.ToLower(doc.Content), word) {
 			docWithWord++
 		}
 	}
-	return math.Log(float64(docCount) / float64(docWithWord+1)) // Добавляем 1 для предотвращения деления на ноль
+	return math.Log(float64(docCount) / float64(docWithWord+1))
 }
 
-// Функция для сортировки документов по релевантности
+// sortByScore сортирует документы по убыванию Score
 func sortByScore(docs []models.Document) []models.Document {
 	for i := 0; i < len(docs)-1; i++ {
 		for j := i + 1; j < len(docs); j++ {
