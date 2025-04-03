@@ -182,28 +182,4 @@ for query in queries:
     
     execution_times[query] = {"no_index": no_index_time, "index": index_time}
 
-# queries_labels = [f"Запрос {i+1}" for i in range(len(queries))]
-# no_index_times = np.array([execution_times[q]["no_index"] for q in queries])
-# index_times = np.array([execution_times[q]["index"] for q in queries])
-
-# log_no_index_times = np.log10(no_index_times)
-# log_index_times = np.log10(index_times)
-# speedup = no_index_times / index_times  
-
-# fig, axs = plt.subplots(2, 1, figsize=(10, 8))
-
-# axs[0].bar(queries_labels, log_no_index_times, label="Без индекса (log10)", alpha=0.7)
-# axs[0].bar(queries_labels, log_index_times, label="С индексом (log10)", alpha=0.7)
-# axs[0].set_ylabel("log10(Время), сек")
-# axs[0].set_title("Сравнение времени выполнения (логарифмическая шкала)")
-# axs[0].legend()
-# axs[0].set_xticklabels(queries_labels, rotation=45)
-
-# axs[1].bar(queries_labels, speedup, color="green", alpha=0.7)
-# axs[1].set_ylabel("Ускорение (X раз)")
-# axs[1].set_xlabel("Запросы")
-# axs[1].set_title("Во сколько раз быстрее поиск с индексом")
-# axs[1].set_xticklabels(queries_labels, rotation=45)
-
-# plt.tight_layout()
 plt.show()

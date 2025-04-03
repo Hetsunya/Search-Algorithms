@@ -2,11 +2,16 @@ import os
 import math
 import time
 import matplotlib.pyplot as plt
+from nltk.tokenize import word_tokenize
+from nltk.stem import SnowballStemmer
+from nltk.corpus import stopwords
+import nltk
 
-# Папка с текстовыми файлами
+nltk.download('punkt')
+nltk.download('stopwords')
+
 DATA_PATH = "kniga"
 
-# 1. Функция загрузки документов
 def load_documents(data_path):
     documents = {}
     for filename in os.listdir(data_path):
@@ -15,27 +20,27 @@ def load_documents(data_path):
                 documents[filename] = file.read()
     return documents
 
-# 2. Токенизация и предобработка текста
 def preprocess_text(text):
     text = text.lower()
-    text = ''.join(c if c.isalpha() or c.isspace() else ' ' for c in text)
-    tokens = [word for word in text.split() if word]
-    stemmed_tokens = [word[:-2] if len(word) > 4 else word for word in tokens]
-    return stemmed_tokens
+    tokens = word_tokenize(text)
+    stemmer = SnowballStemmer("russian")
+    stop_words = set(stopwords.words('russian'))
+    processed_tokens = [stemmer.stem(word) for word in tokens 
+                       if any(c.isalpha() for c in word) and word not in stop_words]
+    return processed_tokens
 
-# 3. Построение матрицы частот (TF) и подсчёт документов с терминами
 def build_tf_matrix_and_doc_freq(documents):
     tf_matrix = {}
     vocab = set()
-    doc_freq = {}  # Подсчёт документов, содержащих слово
-    preprocessed_docs = {}  # Кэшируем токены
+    doc_freq = {}
+    preprocessed_docs = {}
     
     for doc_id, text in documents.items():
         tokens = preprocess_text(text)
         preprocessed_docs[doc_id] = tokens
         total_words = len(tokens)
         word_count = {}
-        unique_words = set(tokens)  # Уникальные слова в документе
+        unique_words = set(tokens)
         
         for word in tokens:
             word_count[word] = word_count.get(word, 0) + 1
@@ -48,59 +53,46 @@ def build_tf_matrix_and_doc_freq(documents):
     
     return tf_matrix, vocab, doc_freq, preprocessed_docs
 
-# 4. Вычисление IDF (оптимизировано)
 def compute_idf(total_docs, doc_freq, vocab):
     idf = {}
     for word in vocab:
-        idf[word] = math.log(total_docs / (doc_freq.get(word, 0) + 1))
+        df = doc_freq.get(word, 0)
+        idf[word] = math.log(total_docs / df)
+
     return idf
 
-# 5. Построение матрицы TF-IDF
 def build_tfidf_matrix(tf_matrix, idf):
     tfidf_matrix = {}
     for doc_id, tf_scores in tf_matrix.items():
         tfidf_matrix[doc_id] = {word: tf * idf.get(word, 0) for word, tf in tf_scores.items()}
     return tfidf_matrix
 
-# 6. Вектор запроса в TF-IDF
 def query_to_tfidf_vector(query, idf, vocab):
     query_tokens = preprocess_text(query)
     total_words = len(query_tokens)
     tf_query = {}
     for word in query_tokens:
         tf_query[word] = tf_query.get(word, 0) + 1 / total_words
-    return {word: tf * idf.get(word, 0) for word, tf in tf_query.items() if word in vocab}
+    result = {word: tf * idf.get(word, 0) for word, tf in tf_query.items() if word in vocab}
+    print(f"Query vector for '{query}': {result}")
+    return result
 
-# 7. Косинусное сходство
 def cosine_similarity(vec1, vec2):
-    dot_product = 0
-    norm1 = 0
-    norm2 = 0
-    all_keys = set(vec1.keys()) | set(vec2.keys())
-    
-    for key in all_keys:
-        v1 = vec1.get(key, 0)
-        v2 = vec2.get(key, 0)
-        dot_product += v1 * v2
-        norm1 += v1 ** 2
-        norm2 += v2 ** 2
-    
-    norm1 = math.sqrt(norm1)
-    norm2 = math.sqrt(norm2)
-    if norm1 == 0 or norm2 == 0:
-        return 0
-    return dot_product / (norm1 * norm2)
+    dot_product = sum(v1 * vec2.get(key, 0) for key, v1 in vec1.items())
+    norm1 = math.sqrt(sum(v1 ** 2 for v1 in vec1.values()))
+    norm2 = math.sqrt(sum(v2 ** 2 for v2 in vec2.values()))
+    return dot_product / (norm1 * norm2) if norm1 * norm2 > 0 else 0
 
-# 8. Ранжирование документов
 def rank_documents(query, tfidf_matrix, idf, vocab):
     query_vector = query_to_tfidf_vector(query, idf, vocab)
     rankings = []
     for doc_id, doc_vector in tfidf_matrix.items():
         similarity = cosine_similarity(query_vector, doc_vector)
         rankings.append((doc_id, similarity))
+        # if similarity > 0.01:  # Порог
+        #     rankings.append((doc_id, similarity))
     return sorted(rankings, key=lambda x: x[1], reverse=True)
 
-# 9. Простой подсчёт встречаемости для сравнения
 def simple_count_search(query, preprocessed_docs):
     query_tokens = preprocess_text(query)
     rankings = []
@@ -109,7 +101,6 @@ def simple_count_search(query, preprocessed_docs):
         rankings.append((doc_id, count))
     return sorted(rankings, key=lambda x: x[1], reverse=True)
 
-# 10. Генерация релевантных документов
 def generate_relevant_docs(queries, preprocessed_docs):
     relevant_docs = {}
     for query in queries:
@@ -121,7 +112,6 @@ def generate_relevant_docs(queries, preprocessed_docs):
         relevant_docs[query] = relevant if relevant else [list(preprocessed_docs.keys())[0]]
     return relevant_docs
 
-# 11. Оценка качества
 def evaluate_search(ranked_docs, relevant_docs):
     retrieved = [doc_id for doc_id, _ in ranked_docs]
     relevant = set(relevant_docs)
@@ -133,7 +123,6 @@ def evaluate_search(ranked_docs, relevant_docs):
     
     return precision, recall, f1
 
-# Основной код
 documents = load_documents(DATA_PATH)
 start_time = time.perf_counter()
 tf_matrix, vocab, doc_freq, preprocessed_docs = build_tf_matrix_and_doc_freq(documents)
@@ -145,20 +134,16 @@ print(f"Подготовка данных завершена за {prep_time:.4f
 print(f"Размер словаря: {len(vocab)} слов")
 print(f"Количество документов: {len(documents)}")
 
-# Тестовые запросы
-queries = ["затрепетали на ветру знамена", "Гондора Мин-Риммон"]
+queries = ["затрепетали на ветру знамена", "Фродо кольцо", "рохиррим"]
 
-# Генерация релевантных документов
 relevant_docs = generate_relevant_docs(queries, preprocessed_docs)
 print("\nСгенерированные релевантные документы:")
 for query, docs in relevant_docs.items():
     print(f"  Запрос: \"{query}\", релевантные документы: {docs}")
 
-# Выполнение и анализ
 for query in queries:
     print(f"\n\n=== Анализ запроса: \"{query}\" ===")
     
-    # Поиск с TF-IDF
     start_time = time.perf_counter()
     tfidf_ranked = rank_documents(query, tfidf_matrix, idf, vocab)
     tfidf_time = time.perf_counter() - start_time
@@ -169,7 +154,6 @@ for query in queries:
         print(f"  Документ: {doc_id}, косинусное сходство: {score:.4f}")
     print(f"  Время выполнения: {tfidf_time:.6f} секунд")
     
-    # Простой подсчёт
     start_time = time.perf_counter()
     simple_ranked = simple_count_search(query, preprocessed_docs)
     simple_time = time.perf_counter() - start_time
@@ -180,7 +164,6 @@ for query in queries:
         print(f"  Документ: {doc_id}, вхождений: {count}")
     print(f"  Время выполнения: {simple_time:.6f} секунд")
     
-    # Оценка качества для TF-IDF
     precision, recall, f1 = evaluate_search(tfidf_ranked, relevant_docs[query])
     print("\nОценка качества (TF-IDF):")
     print(f"  Релевантных документов в корпусе: {len(relevant_docs[query])}")
@@ -189,7 +172,6 @@ for query in queries:
     print(f"  Recall: {recall:.4f}")
     print(f"  F1-score: {f1:.4f}")
     
-    # Сравнительный анализ
     print("\nСравнительный анализ:")
     tfidf_top = set(doc_id for doc_id, _ in tfidf_ranked[:5])
     simple_top = set(doc_id for doc_id, _ in simple_ranked[:5])
@@ -197,7 +179,6 @@ for query in queries:
     print(f"  Уникальные для TF-IDF: {tfidf_top - simple_top}")
     print(f"  Уникальные для простого подсчёта: {simple_top - tfidf_top}")
 
-# График времени выполнения
 queries_labels = [f"Запрос {i+1}" for i in range(len(queries))]
 tfidf_times = []
 simple_times = []
