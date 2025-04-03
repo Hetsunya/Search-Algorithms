@@ -58,7 +58,7 @@ def compute_idf(total_docs, doc_freq, vocab):
     for word in vocab:
         df = doc_freq.get(word, 0)
         # Улучшенная формула IDF для избежания нулевых значений
-        idf[word] = math.log( total_docs / df)
+        idf[word] = math.log(total_docs / df)
         # if idf[word] == 0:
         #     print(f"IDF=0 для '{word}', df={df}, total_docs={total_docs}")
     return idf
@@ -91,6 +91,8 @@ def rank_documents(query, tfidf_matrix, idf, vocab):
     for doc_id, doc_vector in tfidf_matrix.items():
         similarity = cosine_similarity(query_vector, doc_vector)
         rankings.append((doc_id, similarity))
+        # if similarity > 0.01:  # Порог
+        #     rankings.append((doc_id, similarity))
     return sorted(rankings, key=lambda x: x[1], reverse=True)
 
 def simple_count_search(query, preprocessed_docs):
